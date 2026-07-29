@@ -72,6 +72,14 @@ function enabled(name) {
   return (__ENV[name] || '').trim().toLowerCase() === 'true'
 }
 
+function assertCloudProject() {
+  if (!enabled('REQUIRE_CLOUD_PROJECT')) return
+  const projectId = (__ENV.K6_CLOUD_PROJECT_ID || '').trim()
+  if (!/^\d+$/.test(projectId)) {
+    throw new Error('Cloud runs require the numeric K6_CLOUD_PROJECT_ID from the Lonely Radish project overview')
+  }
+}
+
 function isLocalTarget() {
   return localBaseUrl
 }
@@ -125,6 +133,7 @@ const thresholds = {
 export function optionsFor(profileName) {
   const profile = profiles[profileName]
   if (!profile) throw new Error(`Unknown workload profile: ${profileName}`)
+  assertCloudProject()
   assertTarget(profileName, profile)
   return {
     scenarios: {
@@ -153,6 +162,7 @@ export function writeInterestOptions() {
     throw new Error('WRITE_VUS must be between 1 and 50')
   }
   const profile = { heavy: vus > 10, maxVUs: vus }
+  assertCloudProject()
   assertTarget('write-interest', profile, true)
   if (!enabled('ENABLE_WRITES')) {
     throw new Error('Write tests require ENABLE_WRITES=true')

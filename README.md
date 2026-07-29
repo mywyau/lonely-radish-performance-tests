@@ -186,12 +186,18 @@ normal user behaviour.
 
 ## Grafana Cloud k6
 
-Set the Grafana Cloud token and stack ID as shell or CI secrets:
+Set the Grafana Cloud token, stack ID, and Lonely Radish project ID as shell or CI values:
 
 ```sh
 export K6_CLOUD_TOKEN=...
 export K6_CLOUD_STACK_ID=...
+export K6_CLOUD_PROJECT_ID=...
 ```
+
+Open **Testing & synthetics → Performance → Projects**, select the Lonely
+Radish project, and copy the numeric project ID shown beneath its name. Cloud
+commands fail when this value is absent so runs cannot silently fall back to an
+unrelated default project.
 
 Execute locally while streaming metrics to Grafana Cloud:
 
@@ -223,6 +229,7 @@ Configure each GitHub Environment with:
 | Secret | `LR_K6_SESSIONS_JSON` | JSON array matching the local fixture |
 | Secret | `K6_CLOUD_TOKEN` | Grafana Cloud k6 API token |
 | Secret | `K6_CLOUD_STACK_ID` | Grafana Cloud stack ID |
+| Variable | `K6_CLOUD_PROJECT_ID` | Numeric Lonely Radish k6 project ID |
 
 Add required reviewers to the production environment. The checked-in workflow
 caps production dispatches at 25 VUs and does not expose write or heavy workload
@@ -243,4 +250,3 @@ Compare each run with application telemetry during the same `run_id`. Review:
 A passing client-side k6 summary is necessary but not sufficient. The run also
 needs correct match limits, no duplicate records, no growing background backlog,
 and healthy provider dashboards.
-

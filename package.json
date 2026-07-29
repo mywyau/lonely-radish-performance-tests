@@ -11,7 +11,7 @@
     "spike": "k6 run tests/spike.js",
     "soak": "k6 run tests/soak.js",
     "write:interest": "k6 run tests/write-interest.js",
-    "cloud:smoke": "k6 cloud run --local-execution --no-archive-upload tests/smoke.js",
-    "cloud:baseline": "k6 cloud run --local-execution --no-archive-upload tests/baseline.js"
+    "cloud:smoke": "k6 cloud run --local-execution --no-archive-upload -e REQUIRE_CLOUD_PROJECT=true -e K6_CLOUD_PROJECT_ID=\"$K6_CLOUD_PROJECT_ID\" -e BASE_URL=\"$BASE_URL\" -e TARGET_ENV=\"$TARGET_ENV\" -e SESSION_FILE=\"$SESSION_FILE\" -e ALLOW_PRODUCTION_LOAD_TEST=\"$ALLOW_PRODUCTION_LOAD_TEST\" -e PRODUCTION_MAX_VUS=\"$PRODUCTION_MAX_VUS\" tests/smoke.js",
+    "cloud:baseline": "k6 cloud run --local-execution --no-archive-upload -e REQUIRE_CLOUD_PROJECT=true -e K6_CLOUD_PROJECT_ID=\"$K6_CLOUD_PROJECT_ID\" -e BASE_URL=\"$BASE_URL\" -e TARGET_ENV=\"$TARGET_ENV\" -e SESSION_FILE=\"$SESSION_FILE\" -e ALLOW_PRODUCTION_LOAD_TEST=\"$ALLOW_PRODUCTION_LOAD_TEST\" -e PRODUCTION_MAX_VUS=\"$PRODUCTION_MAX_VUS\" tests/baseline.js"
   }
 }

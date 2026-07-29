@@ -72,7 +72,16 @@ jobs:
           LR_K6_SESSIONS_JSON: ${{ secrets.LR_K6_SESSIONS_JSON }}
       - name: Run locally and stream to Grafana Cloud
         if: inputs.stream_to_grafana
-        run: k6 cloud run --local-execution --no-archive-upload "tests/${{ inputs.workload }}.js"
+        run: |
+          k6 cloud run --local-execution --no-archive-upload \
+            -e BASE_URL="$BASE_URL" \
+            -e TARGET_ENV="$TARGET_ENV" \
+            -e SESSION_FILE="$SESSION_FILE" \
+            -e REQUIRE_CLOUD_PROJECT=true \
+            -e K6_CLOUD_PROJECT_ID="$K6_CLOUD_PROJECT_ID" \
+            -e ALLOW_PRODUCTION_LOAD_TEST="$ALLOW_PRODUCTION_LOAD_TEST" \
+            -e PRODUCTION_MAX_VUS="$PRODUCTION_MAX_VUS" \
+            "tests/${{ inputs.workload }}.js"
         env:
           BASE_URL: ${{ vars.LR_BASE_URL }}
           TARGET_ENV: ${{ inputs.target_environment }}
@@ -81,6 +90,7 @@ jobs:
           PRODUCTION_MAX_VUS: "25"
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
           K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
+          K6_CLOUD_PROJECT_ID: ${{ vars.K6_CLOUD_PROJECT_ID }}
       - name: Run without Grafana Cloud streaming
         if: ${{ !inputs.stream_to_grafana }}
         run: k6 run "tests/${{ inputs.workload }}.js"
