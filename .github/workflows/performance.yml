@@ -1,0 +1,92 @@
+name: Performance tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: Environment to test
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+      workload:
+        description: Read-only workload
+        required: true
+        type: choice
+        options:
+          - smoke
+          - baseline
+        default: smoke
+      stream_to_grafana:
+        description: Stream local execution results to Grafana Cloud k6
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - name: Inspect every k6 entry point
+        run: |
+          k6 inspect tests/smoke.js
+          k6 inspect tests/baseline.js
+          k6 inspect tests/load.js
+          k6 inspect tests/stress.js
+          k6 inspect tests/spike.js
+          k6 inspect tests/soak.js
+          k6 inspect -e ENABLE_WRITES=true tests/write-interest.js
+        env:
+          BASE_URL: http://localhost:3000
+          TARGET_ENV: local
+
+  run:
+    if: github.event_name == 'workflow_dispatch'
+    needs: inspect
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.target_environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - name: Create the synthetic session fixture
+        shell: bash
+        run: |
+          mkdir -p fixtures
+          if [ -n "$LR_K6_SESSIONS_JSON" ]; then
+            printf '%s' "$LR_K6_SESSIONS_JSON" > fixtures/sessions.json
+          else
+            printf '[]' > fixtures/sessions.json
+          fi
+          chmod 600 fixtures/sessions.json
+        env:
+          LR_K6_SESSIONS_JSON: ${{ secrets.LR_K6_SESSIONS_JSON }}
+      - name: Run locally and stream to Grafana Cloud
+        if: inputs.stream_to_grafana
+        run: k6 cloud run --local-execution --no-archive-upload "tests/${{ inputs.workload }}.js"
+        env:
+          BASE_URL: ${{ vars.LR_BASE_URL }}
+          TARGET_ENV: ${{ inputs.target_environment }}
+          SESSION_FILE: fixtures/sessions.json
+          ALLOW_PRODUCTION_LOAD_TEST: ${{ inputs.target_environment == 'production' && 'true' || 'false' }}
+          PRODUCTION_MAX_VUS: "25"
+          K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+          K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
+      - name: Run without Grafana Cloud streaming
+        if: ${{ !inputs.stream_to_grafana }}
+        run: k6 run "tests/${{ inputs.workload }}.js"
+        env:
+          BASE_URL: ${{ vars.LR_BASE_URL }}
+          TARGET_ENV: ${{ inputs.target_environment }}
+          SESSION_FILE: fixtures/sessions.json
+          ALLOW_PRODUCTION_LOAD_TEST: ${{ inputs.target_environment == 'production' && 'true' || 'false' }}
+          PRODUCTION_MAX_VUS: "25"

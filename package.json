@@ -1,0 +1,17 @@
+{
+  "name": "lonely-radish-performance-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "inspect": "k6 inspect tests/smoke.js && k6 inspect tests/baseline.js && k6 inspect tests/load.js && k6 inspect tests/stress.js && k6 inspect tests/spike.js && k6 inspect tests/soak.js && k6 inspect -e ENABLE_WRITES=true tests/write-interest.js",
+    "smoke": "k6 run tests/smoke.js",
+    "baseline": "k6 run tests/baseline.js",
+    "load": "k6 run tests/load.js",
+    "stress": "k6 run tests/stress.js",
+    "spike": "k6 run tests/spike.js",
+    "soak": "k6 run tests/soak.js",
+    "write:interest": "k6 run tests/write-interest.js",
+    "cloud:smoke": "k6 cloud run --local-execution --no-archive-upload tests/smoke.js",
+    "cloud:baseline": "k6 cloud run --local-execution --no-archive-upload tests/baseline.js"
+  }
+}

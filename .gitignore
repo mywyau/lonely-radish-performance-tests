@@ -1,0 +1,5 @@
+.DS_Store
+.env
+fixtures/sessions.json
+results/
+
