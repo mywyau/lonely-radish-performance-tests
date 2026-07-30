@@ -19,7 +19,29 @@ on:
         options:
           - smoke
           - baseline
+          - load-50
+          - load
+          - stress
+          - spike
+          - soak
+          - capacity
+          - browser-smoke
         default: smoke
+      production_max_vus:
+        description: Production VU ceiling; must cover the selected workload
+        required: true
+        type: choice
+        options:
+          - "1"
+          - "25"
+          - "50"
+          - "100"
+        default: "1"
+      allow_heavy:
+        description: Acknowledge load, stress, spike, soak, or capacity traffic
+        required: true
+        type: boolean
+        default: false
       stream_to_grafana:
         description: Stream local execution results to Grafana Cloud k6
         required: true
@@ -40,11 +62,17 @@ jobs:
         run: |
           k6 inspect tests/smoke.js
           k6 inspect tests/baseline.js
+          k6 inspect tests/load-50.js
           k6 inspect tests/load.js
           k6 inspect tests/stress.js
           k6 inspect tests/spike.js
           k6 inspect tests/soak.js
+          k6 inspect tests/capacity.js
+          k6 inspect tests/browser-smoke.js
+          k6 inspect tests/local-load-250.js
+          k6 inspect tests/local-stress-500.js
           k6 inspect -e ENABLE_WRITES=true tests/write-interest.js
+          k6 inspect -e ENABLE_STATEFUL_FLOWS=true tests/stateful-match-plan.js
         env:
           BASE_URL: http://localhost:3000
           TARGET_ENV: local
@@ -53,7 +81,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     needs: inspect
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     environment: ${{ inputs.target_environment }}
     steps:
       - uses: actions/checkout@v4
@@ -72,22 +100,14 @@ jobs:
           LR_K6_SESSIONS_JSON: ${{ secrets.LR_K6_SESSIONS_JSON }}
       - name: Run locally and stream to Grafana Cloud
         if: inputs.stream_to_grafana
-        run: |
-          k6 cloud run --local-execution --no-archive-upload \
-            -e BASE_URL="$BASE_URL" \
-            -e TARGET_ENV="$TARGET_ENV" \
-            -e SESSION_FILE="$SESSION_FILE" \
-            -e REQUIRE_CLOUD_PROJECT=true \
-            -e K6_CLOUD_PROJECT_ID="$K6_CLOUD_PROJECT_ID" \
-            -e ALLOW_PRODUCTION_LOAD_TEST="$ALLOW_PRODUCTION_LOAD_TEST" \
-            -e PRODUCTION_MAX_VUS="$PRODUCTION_MAX_VUS" \
-            "tests/${{ inputs.workload }}.js"
+        run: ./scripts/cloud-run.sh "tests/${{ inputs.workload }}.js"
         env:
           BASE_URL: ${{ vars.LR_BASE_URL }}
           TARGET_ENV: ${{ inputs.target_environment }}
           SESSION_FILE: fixtures/sessions.json
           ALLOW_PRODUCTION_LOAD_TEST: ${{ inputs.target_environment == 'production' && 'true' || 'false' }}
-          PRODUCTION_MAX_VUS: "25"
+          ALLOW_HEAVY_PRODUCTION_LOAD_TEST: ${{ inputs.allow_heavy }}
+          PRODUCTION_MAX_VUS: ${{ inputs.production_max_vus }}
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
           K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
           K6_CLOUD_PROJECT_ID: ${{ vars.K6_CLOUD_PROJECT_ID }}
@@ -99,4 +119,5 @@ jobs:
           TARGET_ENV: ${{ inputs.target_environment }}
           SESSION_FILE: fixtures/sessions.json
           ALLOW_PRODUCTION_LOAD_TEST: ${{ inputs.target_environment == 'production' && 'true' || 'false' }}
-          PRODUCTION_MAX_VUS: "25"
+          ALLOW_HEAVY_PRODUCTION_LOAD_TEST: ${{ inputs.allow_heavy }}
+          PRODUCTION_MAX_VUS: ${{ inputs.production_max_vus }}

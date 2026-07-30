@@ -2,7 +2,18 @@
   {
     "label": "perf-member-001",
     "cookie": "replace-with-the-lonely-radish-session-cookie-value",
-    "writeProfileSlug": "perf-recipient-001"
+    "profileSlug": "perf-member-001",
+    "writeProfileSlug": "perf-recipient-001",
+    "partnerCookie": "replace-with-the-partner-session-cookie-value",
+    "partnerProfileSlug": "perf-recipient-001",
+    "proposal": {
+      "activity": "Coffee",
+      "inviteNote": "Synthetic staging performance test",
+      "venue": "Performance Test Cafe",
+      "venueAddress": "1 Test Street, London",
+      "venuePostcode": "SW1A 1AA",
+      "meetingPoint": "Outside the main entrance",
+      "time": "2030-01-01T12:00:00.000Z"
+    }
   }
 ]
-

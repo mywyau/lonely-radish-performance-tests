@@ -15,6 +15,10 @@ export function hasSessions() {
   return fileSessions.length > 0 || Boolean(environmentSession)
 }
 
+export function sessionCount() {
+  return fileSessions.length || (environmentSession ? 1 : 0)
+}
+
 export function sessionForVu(vu = __VU) {
   const record = fileSessions.length
     ? fileSessions[(Math.max(1, vu) - 1) % fileSessions.length]
@@ -31,6 +35,11 @@ export function cookieHeader(record) {
     : `lonely-radish-session=${value}`
 }
 
+export function cookieValue(record) {
+  const header = cookieHeader(record)
+  return header.slice(header.indexOf('=') + 1)
+}
+
 export function authenticatedParams(record, extraHeaders = {}) {
   return {
     headers: {
@@ -39,4 +48,3 @@ export function authenticatedParams(record, extraHeaders = {}) {
     },
   }
 }
-

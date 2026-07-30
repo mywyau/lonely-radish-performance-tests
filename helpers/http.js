@@ -14,6 +14,7 @@ function requestParams(journey, endpoint, extra = {}) {
     tags: {
       journey,
       endpoint,
+      name: endpoint,
       ...(extra.tags || {}),
     },
   }
@@ -47,6 +48,12 @@ export function expectStatus(response, name, statuses = [200]) {
   return passed
 }
 
+export function expectValue(value, name) {
+  return check(value, {
+    [name]: result => Boolean(result),
+  })
+}
+
 export function jsonBody(response, fallback = null) {
   try {
     return response.json()
@@ -54,4 +61,3 @@ export function jsonBody(response, fallback = null) {
     return fallback
   }
 }
-
