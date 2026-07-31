@@ -1,5 +1,6 @@
 .DS_Store
 .env
+node_modules/
 fixtures/sessions.json
+fixtures/performance-users.json
 results/
-

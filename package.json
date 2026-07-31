@@ -3,6 +3,18 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "users:check": "node scripts/check-performance-config.mjs",
+    "users:seed": "node scripts/seed-performance-users.mjs",
+    "users:sessions": "node scripts/create-performance-sessions.mjs",
+    "users:validate": "node scripts/validate-performance-sessions.mjs",
+    "users:prepare": "npm run users:seed && npm run users:sessions && npm run users:validate",
+    "users:destroy": "node scripts/destroy-performance-users.mjs",
+    "test:provisioning": "node --test node-tests/*.test.mjs",
+    "staging:smoke": "./scripts/staging-run.sh tests/smoke.js",
+    "staging:baseline": "./scripts/staging-run.sh tests/baseline.js",
+    "staging:load:50": "./scripts/staging-run.sh tests/load-50.js",
+    "staging:load:100": "./scripts/staging-run.sh tests/load.js",
+    "staging:capacity": "./scripts/staging-run.sh tests/capacity.js",
     "inspect": "k6 inspect tests/smoke.js && k6 inspect tests/baseline.js && k6 inspect tests/load-50.js && k6 inspect tests/load.js && k6 inspect tests/stress.js && k6 inspect tests/spike.js && k6 inspect tests/soak.js && k6 inspect tests/capacity.js && k6 inspect tests/browser-smoke.js && k6 inspect tests/local-load-250.js && k6 inspect tests/local-stress-500.js && k6 inspect -e ENABLE_WRITES=true tests/write-interest.js && k6 inspect -e ENABLE_STATEFUL_FLOWS=true tests/stateful-match-plan.js",
     "smoke": "k6 run tests/smoke.js",
     "baseline": "k6 run tests/baseline.js",
@@ -29,5 +41,10 @@
     "cloud:soak": "./scripts/cloud-run.sh tests/soak.js",
     "cloud:capacity": "./scripts/cloud-run.sh tests/capacity.js",
     "cloud:browser:smoke": "./scripts/cloud-run.sh tests/browser-smoke.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "dotenv": "^17.2.1",
+    "pg": "^8.16.3"
   }
 }
