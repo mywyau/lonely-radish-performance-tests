@@ -40,8 +40,15 @@ Install a current k6 release:
 brew install k6
 ```
 
-No npm dependencies are required. The `package.json` scripts are command
-shortcuts only.
+Install the Node dependencies used by staging account provisioning and its
+Chromium login step:
+
+```sh
+npm install
+npx playwright install chromium
+```
+
+The k6 workloads themselves still run in k6 rather than Node.
 
 ## Safe first run
 
@@ -110,31 +117,85 @@ The application stores authentication in an encrypted, HTTP-only cookie named
 `lonely-radish-session`. k6 does not bypass Auth0. It reuses short-lived sessions
 created by logging dedicated synthetic users into the target environment.
 
-Copy the ignored fixture:
+For staging, configure `.env` from `.env.example` with the guarded target,
+database, Auth0 and pool values:
 
-```sh
-cp fixtures/sessions.example.json fixtures/sessions.json
+```dotenv
+BASE_URL=https://your-staging-origin.example
+TARGET_ENV=staging
+PERF_ALLOWED_HOST=your-staging-host.example
+PERF_PRODUCTION_URL=https://your-production-origin.example
+
+PERF_DATABASE_URL=postgresql://...
+PERF_EXPECTED_DATABASE_HOST=your-exact-database-host
+PERF_EXPECTED_DATABASE_PROJECT_REF=your-staging-supabase-ref
+PERF_ALLOW_DATABASE_WRITE=true
+
+PERF_AUTH0_DOMAIN=your-staging-tenant.eu.auth0.com
+PERF_AUTH0_MGMT_CLIENT_ID=...
+PERF_AUTH0_MGMT_CLIENT_SECRET=...
+PERF_AUTH0_CONNECTION=Username-Password-Authentication
+PERF_TEST_PASSWORD=a-strong-dedicated-test-password
+
+PERF_USER_COUNT=100
+PERF_EMAIL_DOMAIN=test-domain-you-control.example
+PERF_EMAIL_PREFIX=perf-load
+PERF_SLUG_PREFIX=perf-load
+PERF_POOL_ID=default
+SESSION_FILE=fixtures/sessions.json
+REQUIRE_UNIQUE_SESSIONS=true
 ```
 
-For each synthetic account:
-
-1. Sign in through the normal application login.
-2. Open browser developer tools.
-3. Copy only the value of the `lonely-radish-session` cookie.
-4. Add it to `fixtures/sessions.json`.
-
-Then run:
+The staging-only Auth0 Management application needs `read:users` and
+`create:users`. Install the browser once, then prepare the pool:
 
 ```sh
-BASE_URL=https://staging.example.com \
-TARGET_ENV=staging \
-SESSION_FILE=fixtures/sessions.json \
-npm run baseline
+npm install
+npx playwright install chromium
+npm run users:check
+npm run users:prepare
 ```
 
-The fixture is gitignored. Never commit session cookies or use genuine member
-accounts. Sessions last up to seven days but may become invalid sooner; replace
-them when authenticated checks fail.
+This verifies `/api/health`, creates or reuses marked Auth0 accounts, resets and
+seeds only their staging database records, signs each account in through
+Universal Login, writes `fixtures/sessions.json`, and validates every session.
+Account creation and login happen before the timed k6 run.
+
+Generated addresses are deterministic, such as
+`perf-load-00001@test-domain-you-control.example`. They must be unique but do
+not need separate inboxes. Staging email is suppressed unless an address is
+explicitly included in the app's staging allowlist.
+
+If you do not have a catch-all domain, one inbox with plus addressing also
+works. For example, `PERF_EMAIL_PREFIX=yourname+radish-perf` and
+`PERF_EMAIL_DOMAIN=gmail.com` generates unique Auth0 addresses that all route to
+the same mailbox. Profile slugs automatically replace the `+` with `-`.
+
+The user manifest and cookie fixture are ignored by Git. Regenerate expired
+sessions without reseeding profiles:
+
+```sh
+npm run users:sessions
+npm run users:validate
+```
+
+Pools may be increased up to 500 accounts. To reduce the pool or change its
+email namespace, destroy the existing pool first so no marked accounts are
+orphaned.
+
+Run progressively against staging:
+
+```sh
+npm run staging:smoke
+npm run staging:baseline
+npm run staging:load:50
+npm run staging:load:100
+npm run staging:capacity
+```
+
+The staging wrappers load `.env` automatically. `REQUIRE_UNIQUE_SESSIONS=true`
+makes a run fail instead of silently sharing an identity between VUs. Use at
+least as many accounts as the workload's maximum VUs.
 
 Use at least one session per expected authenticated VU. Reusing one account
 across hundreds of VUs produces unrealistic data, can trigger per-user rate
@@ -150,6 +211,16 @@ known pair:
 - `partnerCookie` and `partnerProfileSlug`: their paired synthetic member;
 - `proposal`: a public venue and future time compatible with the primary
   member's saved availability.
+
+To completely remove the pool, grant the staging Management application
+`delete:users`, then use the separately locked command:
+
+```sh
+PERF_ALLOW_ACCOUNT_DELETE=true npm run users:destroy
+```
+
+Deletion validates the marker, pool, IDs and emails from the ignored manifest
+and removes only those exact accounts from staging Auth0 and PostgreSQL.
 
 ## Controlled production testing
 
@@ -265,9 +336,9 @@ STATEFUL_VUS=1 \
 npm run stateful:match-plan
 ```
 
-The proposal time must be in the future and match member A's saved availability.
-Until staging has an automated seed/reset job, treat this as a one-shot
-correctness/performance journey and reset the pair before running it again.
+The generated proposal time is in the future and matches the seeded availability.
+Run `npm run users:seed` before another stateful/write run to reset the marked
+pool's relationship data, then regenerate sessions only if they have expired.
 
 ## Grafana Cloud k6
 

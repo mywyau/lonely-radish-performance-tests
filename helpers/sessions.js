@@ -10,6 +10,7 @@ const fileSessions = sessionFile
   : []
 
 const environmentSession = (__ENV.SESSION_COOKIE || '').trim()
+const requireUniqueSessions = (__ENV.REQUIRE_UNIQUE_SESSIONS || '').trim().toLowerCase() === 'true'
 
 export function hasSessions() {
   return fileSessions.length > 0 || Boolean(environmentSession)
@@ -20,6 +21,9 @@ export function sessionCount() {
 }
 
 export function sessionForVu(vu = __VU) {
+  if (requireUniqueSessions && fileSessions.length && vu > fileSessions.length) {
+    throw new Error(`VU ${vu} has no unique synthetic session; SESSION_FILE contains ${fileSessions.length}`)
+  }
   const record = fileSessions.length
     ? fileSessions[(Math.max(1, vu) - 1) % fileSessions.length]
     : environmentSession ? { label: 'environment-session', cookie: environmentSession } : null
