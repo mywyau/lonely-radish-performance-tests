@@ -19,14 +19,20 @@ export async function browserJourney() {
   const context = await browser.newContext()
   const session = hasSessions() ? sessionForVu() : null
   if (session) {
-    await context.addCookies([{
+    const cookies = [{
       name: 'lonely-radish-session',
       value: cookieValue(session),
       url: baseUrl,
       httpOnly: true,
       secure: baseUrl.startsWith('https://'),
       sameSite: 'Lax',
-    }])
+    }]
+    if (session.deploymentProtectionCookie?.name && session.deploymentProtectionCookie?.value) {
+      cookies.push({ name: session.deploymentProtectionCookie.name,
+        value: session.deploymentProtectionCookie.value, url: baseUrl,
+        httpOnly: true, secure: baseUrl.startsWith('https://'), sameSite: 'Lax' })
+    }
+    await context.addCookies(cookies)
   }
   const page = await context.newPage()
   try {

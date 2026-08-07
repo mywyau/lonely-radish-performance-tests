@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { assertStagingReady, loadManifest, sessionPath, stagingTarget } from './performance-safety.mjs'
+import { assertStagingReady, deploymentProtectionHeaders, loadManifest, sessionPath, stagingTarget } from './performance-safety.mjs'
 
 await assertStagingReady()
 const target = stagingTarget()
@@ -18,7 +18,7 @@ async function worker() {
     const session = sessions[index]
     if (!session?.cookie || /[\r\n]/.test(session.cookie)) throw new Error(`Invalid cookie for session ${index + 1}`)
     const response = await fetch(new URL('/api/auth/session', target), {
-      headers: { cookie: `lonely-radish-session=${session.cookie}` },
+      headers: { ...deploymentProtectionHeaders(), cookie: `lonely-radish-session=${session.cookie}` },
     })
     if (!response.ok || (await response.json()).authenticated !== true) {
       throw new Error(`Session ${session.label || index + 1} is not authenticated`)

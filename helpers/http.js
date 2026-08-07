@@ -2,6 +2,9 @@ import http from 'k6/http'
 import { check } from 'k6'
 import { baseUrl, runId } from './config.js'
 
+const vercelBypassSecret = (__ENV.PERF_VERCEL_BYPASS_SECRET || '').trim()
+if (/[\r\n]/.test(vercelBypassSecret)) throw new Error('PERF_VERCEL_BYPASS_SECRET is invalid')
+
 function requestParams(journey, endpoint, extra = {}) {
   return {
     redirects: 5,
@@ -9,6 +12,7 @@ function requestParams(journey, endpoint, extra = {}) {
     headers: {
       'User-Agent': 'lonely-radish-k6/1.0',
       'X-Load-Test-Run-Id': runId,
+      ...(vercelBypassSecret ? { 'x-vercel-protection-bypass': vercelBypassSecret } : {}),
       ...(extra.headers || {}),
     },
     tags: {

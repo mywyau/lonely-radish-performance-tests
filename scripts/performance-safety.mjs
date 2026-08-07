@@ -20,10 +20,33 @@ export function stagingTarget() {
     throw new Error('PERF_ALLOWED_HOST does not match BASE_URL')
   }
   const production = process.env.PERF_PRODUCTION_URL?.trim()
-  if (production && new URL(production).origin === target.origin) {
-    throw new Error('Refusing to use the production application target')
+  if (production) {
+    let productionTarget
+    try { productionTarget = new URL(production) }
+    catch { throw new Error('PERF_PRODUCTION_URL must be an absolute production URL') }
+    if (productionTarget.origin === target.origin) {
+      throw new Error('Refusing to use the production application target')
+    }
   }
   return target
+}
+
+export function deploymentProtectionHeaders() {
+  const secret = process.env.PERF_VERCEL_BYPASS_SECRET?.trim()
+  if (!secret) return {}
+  if (/[\r\n]/.test(secret)) throw new Error('PERF_VERCEL_BYPASS_SECRET is invalid')
+  return { 'x-vercel-protection-bypass': secret }
+}
+
+export function deploymentProtectionUrl(path = '/') {
+  const url = new URL(path, stagingTarget())
+  const secret = process.env.PERF_VERCEL_BYPASS_SECRET?.trim()
+  if (secret) {
+    if (/[\r\n]/.test(secret)) throw new Error('PERF_VERCEL_BYPASS_SECRET is invalid')
+    url.searchParams.set('x-vercel-protection-bypass', secret)
+    url.searchParams.set('x-vercel-set-bypass-cookie', 'true')
+  }
+  return url
 }
 
 export function stagingDatabaseUrl({ destructive = false } = {}) {
@@ -95,7 +118,9 @@ export async function loadManifest() {
 }
 
 export async function assertStagingReady() {
-  const response = await fetch(new URL('/api/health', stagingTarget()))
+  const response = await fetch(new URL('/api/health', stagingTarget()), {
+    headers: deploymentProtectionHeaders(),
+  })
   if (!response.ok) throw new Error(`Staging health returned HTTP ${response.status}`)
   const health = await response.json()
   if (health.status !== 'ok' || health.environment !== 'staging' || health.checks?.deploymentSafety !== 'safe') {
