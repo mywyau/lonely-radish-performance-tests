@@ -1,9 +1,15 @@
 import { SharedArray } from 'k6/data'
 
 const sessionFile = (__ENV.SESSION_FILE || '').trim()
+// k6 resolves open() paths relative to the module that calls it. SESSION_FILE is
+// documented and generated relative to the repository root, while this helper
+// lives one directory below it.
+const k6SessionFile = sessionFile && !sessionFile.startsWith('/')
+  ? `../${sessionFile.replace(/^\.\//, '')}`
+  : sessionFile
 const fileSessions = sessionFile
   ? new SharedArray('synthetic member sessions', () => {
-      const parsed = JSON.parse(open(sessionFile))
+      const parsed = JSON.parse(open(k6SessionFile))
       if (!Array.isArray(parsed)) throw new Error('SESSION_FILE must contain a JSON array')
       return parsed
     })
