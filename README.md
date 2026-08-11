@@ -96,7 +96,7 @@ increasing load. List every runner mode with:
 | `smoke` | 1 VU | Verify the target, sessions and checks |
 | `baseline` | 25 VUs | Establish normal latency |
 | `load-50` | 50 VUs | Intermediate sustained load |
-| `load-100` | 100 VUs | Grafana free-tier VU ceiling |
+| `load-100` | 100 VUs | Full authenticated staging load |
 | `stress-100` | 100 VUs | Sustain the ceiling |
 | `spike-100` | 100 VUs | Sudden traffic jump |
 | `soak` | 50 VUs | Find leaks and gradual degradation |
@@ -110,7 +110,17 @@ and interests, notifications, date planning, preferences and account data.
 Stable k6 tags allow Grafana to break latency down by endpoint and journey.
 
 Use at least one prepared account per authenticated VU. The runner defaults to
-`REQUIRE_UNIQUE_SESSIONS=true` and fails if the pool is too small.
+`REQUIRE_UNIQUE_SESSIONS=true` and refuses to start if the pool is too small.
+
+Pools above 500 accounts require an additional staging-only acknowledgement:
+
+```dotenv
+PERF_USER_COUNT=1000
+PERF_ALLOW_LARGE_USER_POOL=true
+```
+
+The hard ceiling is 2,000 accounts, the pool size must remain even, and all
+existing target, database, namespace and destructive-cleanup locks still apply.
 
 ## Grafana Cloud
 
@@ -175,16 +185,53 @@ manifest.
 
 ## Higher local-only loads
 
-These open-source k6 runs exceed the 100-VU Grafana Cloud free-tier limit and
-do not stream to Cloud:
+These open-source k6 runs execute locally and do not consume Grafana Cloud VU
+hours or depend on Cloud project limits:
 
 ```sh
 npm run local:load:250
 npm run local:stress:500
+npm run local:load:1000
 ```
 
 Monitor the load generator itself so its CPU, memory or network does not become
-the bottleneck.
+the bottleneck. The 1,000-VU profile requires 1,000 unique sessions and ramps
+through 250, 500 and 750 VUs before holding 1,000 VUs for two minutes.
+
+The normal 1,000-VU profile aborts when HTTP failures exceed 1%. To capture the
+full degradation curve without weakening the normal safeguard, explicitly
+enable the staging-only diagnostic profile:
+
+```dotenv
+PERF_ALLOW_THRESHOLD_OVERRUN=true
+```
+
+```sh
+npm run local:diagnostic:1000
+```
+
+This mode continues after latency and HTTP-failure thresholds are crossed, but
+the thresholds remain in the final summary and the command exits as failed. It
+is forbidden in production. Stop it manually if staging or a provider shows
+signs of broader instability.
+
+To locate the saturation point without another six-minute run, use the short
+fixed-load diagnostics. Each ramps up for 30 seconds, holds its named load for
+one minute, and ramps down for 30 seconds:
+
+```sh
+npm run diagnostic:400
+npm run diagnostic:500
+npm run diagnostic:600
+```
+
+Run them separately and allow staging metrics to settle between runs. They use
+the same `PERF_ALLOW_THRESHOLD_OVERRUN=true` acknowledgement and existing
+session fixture; do not prepare the accounts again when `npm run users:validate`
+passes. Unexpected responses are counted by status near the end of the k6
+summary (for example, `unexpected_http_status_429` or
+`unexpected_http_status_503`). Compare the first failing load with Vercel and
+database telemetry from the same time window.
 
 ## Safety and result checks
 

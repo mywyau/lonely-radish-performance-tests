@@ -1,4 +1,5 @@
 import { SharedArray } from 'k6/data'
+import exec from 'k6/execution'
 
 const sessionFile = (__ENV.SESSION_FILE || '').trim()
 // k6 resolves open() paths relative to the module that calls it. SESSION_FILE is
@@ -26,7 +27,14 @@ export function sessionCount() {
   return fileSessions.length || (environmentSession ? 1 : 0)
 }
 
-export function sessionForVu(vu = __VU) {
+export function assertSessionCapacity(requiredVus) {
+  const available = sessionCount()
+  if (requireUniqueSessions && available < requiredVus) {
+    throw new Error(`Workload requires ${requiredVus} unique synthetic sessions; SESSION_FILE contains ${available}`)
+  }
+}
+
+export function sessionForVu(vu = exec.vu.idInTest) {
   if (requireUniqueSessions && fileSessions.length && vu > fileSessions.length) {
     throw new Error(`VU ${vu} has no unique synthetic session; SESSION_FILE contains ${fileSessions.length}`)
   }

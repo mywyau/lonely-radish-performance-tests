@@ -1,3 +1,5 @@
+import { assertSessionCapacity } from './sessions.js'
+
 const rawBaseUrl = __ENV.BASE_URL || 'http://localhost:3000'
 export const baseUrl = rawBaseUrl.replace(/\/+$/, '')
 const localBaseUrl = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(baseUrl)
@@ -5,6 +7,18 @@ export const targetEnvironment = (__ENV.TARGET_ENV || (localBaseUrl ? 'local' : 
 export const runId = (__ENV.RUN_ID || `${targetEnvironment || 'unknown'}-${Date.now()}`)
   .replace(/[^a-zA-Z0-9._:-]/g, '-')
   .slice(0, 100)
+
+function fixedDiagnosticProfile(maxVUs) {
+  return {
+    heavy: true,
+    maxVUs,
+    stages: [
+      { duration: '30s', target: maxVUs },
+      { duration: '1m', target: maxVUs },
+      { duration: '30s', target: 0 },
+    ],
+  }
+}
 
 const profiles = {
   smoke: {
@@ -97,6 +111,20 @@ const profiles = {
       { duration: '2m', target: 0 },
     ],
   },
+  local1000: {
+    heavy: true,
+    maxVUs: 1000,
+    stages: [
+      { duration: '1m', target: 250 },
+      { duration: '1m', target: 500 },
+      { duration: '1m', target: 750 },
+      { duration: '2m', target: 1000 },
+      { duration: '1m', target: 0 },
+    ],
+  },
+  diagnostic400: fixedDiagnosticProfile(400),
+  diagnostic500: fixedDiagnosticProfile(500),
+  diagnostic600: fixedDiagnosticProfile(600),
 }
 
 function enabled(name) {
@@ -153,8 +181,7 @@ function assertTarget(profileName, profile, writes = false) {
   }
 }
 
-const thresholds = {
-  http_req_failed: [{ threshold: 'rate<0.01', abortOnFail: true, delayAbortEval: '20s' }],
+const baseThresholds = {
   http_req_duration: ['p(95)<800', 'p(99)<1500'],
   checks: ['rate>0.99'],
   'http_req_duration{journey:public}': ['p(95)<500'],
@@ -170,9 +197,19 @@ const thresholds = {
   'http_req_duration{name:notifications}': ['p(95)<700'],
 }
 
-export function optionsFor(profileName) {
+function thresholdsFor({ abortOnHttpFailure = true } = {}) {
+  return {
+    ...baseThresholds,
+    http_req_failed: abortOnHttpFailure
+      ? [{ threshold: 'rate<0.01', abortOnFail: true, delayAbortEval: '20s' }]
+      : ['rate<0.01'],
+  }
+}
+
+export function optionsFor(profileName, { abortOnHttpFailure = true, workload = profileName } = {}) {
   const profile = profiles[profileName]
   if (!profile) throw new Error(`Unknown workload profile: ${profileName}`)
+  assertSessionCapacity(profile.maxVUs)
   assertCloudProject()
   assertTarget(profileName, profile)
   return {
@@ -184,16 +221,29 @@ export function optionsFor(profileName) {
         stages: profile.stages,
       },
     },
-    thresholds,
+    thresholds: thresholdsFor({ abortOnHttpFailure }),
     tags: {
       application: 'lonely-radish',
-      workload: profileName,
+      workload,
       target_environment: targetEnvironment,
       run_id: runId,
     },
     discardResponseBodies: false,
     summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   }
+}
+
+export function diagnosticOptionsFor(profileName) {
+  if (targetEnvironment === 'production') {
+    throw new Error('Threshold-overrun diagnostics are forbidden in production')
+  }
+  if (!enabled('PERF_ALLOW_THRESHOLD_OVERRUN')) {
+    throw new Error('Threshold-overrun diagnostics require PERF_ALLOW_THRESHOLD_OVERRUN=true')
+  }
+  return optionsFor(profileName, {
+    abortOnHttpFailure: false,
+    workload: `${profileName}-diagnostic`,
+  })
 }
 
 export function arrivalRateOptions() {
@@ -220,7 +270,7 @@ export function arrivalRateOptions() {
       },
     },
     thresholds: {
-      ...thresholds,
+      ...thresholdsFor(),
       dropped_iterations: ['count==0'],
       'http_req_duration{journey:capacity}': ['p(95)<800', 'p(99)<1500'],
     },

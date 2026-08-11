@@ -79,8 +79,13 @@ export function databaseSsl() {
 
 export function poolConfiguration() {
   const count = Number.parseInt(process.env.PERF_USER_COUNT || '100', 10)
-  if (!Number.isSafeInteger(count) || count < 2 || count > 500 || count % 2 !== 0) {
-    throw new Error('PERF_USER_COUNT must be an even number between 2 and 500')
+  const hardMaximum = 2_000
+  const largePoolThreshold = 500
+  if (!Number.isSafeInteger(count) || count < 2 || count > hardMaximum || count % 2 !== 0) {
+    throw new Error(`PERF_USER_COUNT must be an even number between 2 and ${hardMaximum}`)
+  }
+  if (count > largePoolThreshold && process.env.PERF_ALLOW_LARGE_USER_POOL !== 'true') {
+    throw new Error(`Pools above ${largePoolThreshold} users require PERF_ALLOW_LARGE_USER_POOL=true`)
   }
   const prefix = (process.env.PERF_EMAIL_PREFIX || 'perf-load').trim().toLowerCase()
   const slugPrefix = (process.env.PERF_SLUG_PREFIX || prefix.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''))

@@ -10,6 +10,8 @@ mode=${1:-smoke}
 print_usage() {
   echo "Usage: ./scripts/run-performance-tests.sh MODE"
   echo "Modes: smoke baseline load-50 load-100 stress-100 spike-100 soak capacity browser"
+  echo "       local-250 local-500 local-1000 local-1000-diagnostic"
+  echo "       diagnostic-400 diagnostic-500 diagnostic-600"
   echo "       write-interest stateful-match-plan inspect"
   echo "       cloud-smoke cloud-baseline cloud-load-50 cloud-load-100 cloud-stress-100"
   echo "       cloud-spike-100 cloud-soak cloud-capacity cloud-browser"
@@ -55,6 +57,13 @@ case "$mode" in
   soak) exec k6 run tests/soak.js ;;
   capacity) exec k6 run tests/capacity.js ;;
   browser) exec k6 run tests/browser-smoke.js ;;
+  local-250) exec k6 run tests/local-load-250.js ;;
+  local-500) exec k6 run tests/local-stress-500.js ;;
+  local-1000) exec k6 run tests/local-load-1000.js ;;
+  local-1000-diagnostic) exec k6 run tests/local-load-1000-diagnostic.js ;;
+  diagnostic-400) exec k6 run tests/diagnostic-400.js ;;
+  diagnostic-500) exec k6 run tests/diagnostic-500.js ;;
+  diagnostic-600) exec k6 run tests/diagnostic-600.js ;;
   write-interest)
     export ENABLE_WRITES=true
     exec k6 run tests/write-interest.js

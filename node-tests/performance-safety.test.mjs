@@ -6,12 +6,13 @@ const names = [
   'TARGET_ENV', 'BASE_URL', 'PERF_ALLOWED_HOST', 'PERF_PRODUCTION_URL', 'PERF_DATABASE_URL',
   'PERF_EXPECTED_DATABASE_HOST', 'PERF_EXPECTED_DATABASE_PROJECT_REF', 'PERF_ALLOW_DATABASE_WRITE',
   'PERF_ALLOW_ACCOUNT_DELETE', 'PERF_USER_COUNT', 'PERF_EMAIL_DOMAIN', 'PERF_EMAIL_PREFIX',
-  'PERF_SLUG_PREFIX', 'PERF_POOL_ID',
+  'PERF_SLUG_PREFIX', 'PERF_POOL_ID', 'PERF_ALLOW_LARGE_USER_POOL',
 ]
 const original = Object.fromEntries(names.map(name => [name, process.env[name]]))
 
 beforeEach(() => {
   delete process.env.PERF_SLUG_PREFIX
+  delete process.env.PERF_ALLOW_LARGE_USER_POOL
   Object.assign(process.env, {
     TARGET_ENV: 'staging',
     BASE_URL: 'https://staging.example.com',
@@ -60,9 +61,15 @@ test('refuses production, host mismatches, and database project mismatches', () 
   assert.throws(() => stagingDatabaseUrl(), /does not match PERF_EXPECTED_DATABASE_PROJECT_REF/)
 })
 
-test('requires an even bounded account pool and explicit destructive permission', () => {
+test('requires an even bounded account pool and explicit large-pool and destructive permissions', () => {
   process.env.PERF_USER_COUNT = '99'
-  assert.throws(() => poolConfiguration(), /even number between 2 and 500/)
+  assert.throws(() => poolConfiguration(), /even number between 2 and 2000/)
+  process.env.PERF_USER_COUNT = '2002'
+  assert.throws(() => poolConfiguration(), /even number between 2 and 2000/)
+  process.env.PERF_USER_COUNT = '1000'
+  assert.throws(() => poolConfiguration(), /PERF_ALLOW_LARGE_USER_POOL/)
+  process.env.PERF_ALLOW_LARGE_USER_POOL = 'true'
+  assert.equal(poolConfiguration().count, 1000)
   process.env.PERF_USER_COUNT = '100'
   assert.throws(() => stagingDatabaseUrl({ destructive: true }), /PERF_ALLOW_ACCOUNT_DELETE/)
   process.env.PERF_ALLOW_ACCOUNT_DELETE = 'true'
