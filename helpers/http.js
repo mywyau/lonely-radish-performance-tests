@@ -42,6 +42,14 @@ export function get(path, journey, endpoint, extra = {}) {
   return http.get(`${baseUrl}${path}`, requestParams(journey, endpoint, extra))
 }
 
+export function getBatch(requests) {
+  return http.batch(requests.map(({ path, journey, endpoint, extra = {} }) => ({
+    method: 'GET',
+    url: `${baseUrl}${path}`,
+    params: requestParams(journey, endpoint, extra),
+  })))
+}
+
 export function postJson(path, body, journey, endpoint, extra = {}) {
   return http.post(
     `${baseUrl}${path}`,

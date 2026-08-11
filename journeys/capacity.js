@@ -16,14 +16,11 @@ export function capacityRequest() {
   if (bucket < 55) {
     const category = categories[(__VU + __ITER) % categories.length]
     expectStatus(get(`/api/activities/${category}/people`, 'capacity', 'discovery', auth), 'capacity discovery')
-  } else if (bucket < 70) {
-    expectStatus(get('/api/matches', 'capacity', 'matches', auth), 'capacity matches')
   } else if (bucket < 80) {
-    expectStatus(get('/api/notifications', 'capacity', 'notifications', auth), 'capacity notifications')
+    expectStatus(get('/api/matches?includeNotifications=true', 'capacity', 'matches', auth), 'capacity matches dashboard')
   } else if (bucket < 90) {
     expectStatus(get('/api/interests/received', 'capacity', 'received-interests', auth), 'capacity received interests')
   } else {
     expectStatus(get('/api/profile/me', 'capacity', 'own-profile', auth), 'capacity own profile')
   }
 }
-

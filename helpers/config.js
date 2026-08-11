@@ -194,7 +194,7 @@ const baseThresholds = {
   'http_req_duration{name:profile}': ['p(95)<800'],
   'http_req_duration{name:matches}': ['p(95)<800'],
   'http_req_duration{name:planning}': ['p(95)<800'],
-  'http_req_duration{name:notifications}': ['p(95)<700'],
+  'http_req_duration{name:today-interests}': ['p(95)<800'],
 }
 
 function thresholdsFor({ abortOnHttpFailure = true } = {}) {

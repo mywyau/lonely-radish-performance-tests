@@ -109,6 +109,13 @@ Authenticated read traffic is weighted across discovery and profiles, matches
 and interests, notifications, date planning, preferences and account data.
 Stable k6 tags allow Grafana to break latency down by endpoint and journey.
 
+The read journeys model current page behaviour rather than treating every API
+route as a separate page request. In particular, the Matches page requests
+matches and recent notifications together, the Account page reuses the
+60-second bootstrap state and loads profile/readiness concurrently, and profile
+navigation honours the 30-second daily-interest client cache. Standalone API
+routes can still be tested directly when investigating a specific endpoint.
+
 Use at least one prepared account per authenticated VU. The runner defaults to
 `REQUIRE_UNIQUE_SESSIONS=true` and refuses to start if the pool is too small.
 
@@ -232,6 +239,12 @@ passes. Unexpected responses are counted by status near the end of the k6
 summary (for example, `unexpected_http_status_429` or
 `unexpected_http_status_503`). Compare the first failing load with Vercel and
 database telemetry from the same time window.
+
+Results produced before the page-oriented workload update are not directly
+comparable by raw request or iteration counts: the revised journeys issue fewer
+duplicate requests and validate the consolidated Matches response. Latency and
+failure rates remain useful, but establish a new 400-VU baseline before judging
+the next 500-VU run.
 
 ## Safety and result checks
 
